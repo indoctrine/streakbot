@@ -150,7 +150,6 @@ class Streaks:
             query = 'SELECT personal_best FROM users WHERE user_id = %s'
             cursor.execute(query, (user_id,))
             results = cursor.fetchone()
-            print(results)
             return results
         except Error as e:
             logging.exception(f'Unable to get personal best - {e}')
