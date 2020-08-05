@@ -3,27 +3,17 @@ from discord.ext import commands
 import json
 import logging
 import sys
-<<<<<<< HEAD
 import mariadb
 from mariadb import Error
 #import mysql.connector
 #from mysql.connector import Error
 #from mysql.connector import pooling
-=======
-import mysql.connector
-from mysql.connector import Error
-from mysql.connector import pooling
->>>>>>> 675d1d334baea49c3d0b8e2e25818560d49fe23d
 import atexit
 from streak import Streaks
 
 CMD_COOLDOWN = 82800 # Cooldown is 23 hours
-<<<<<<< HEAD
 DB_NAME = 'streakbot' # Must be SQL friendly
 DB_HOST = 'localhost'
-=======
-DB_NAME = 'streakbot'
->>>>>>> 675d1d334baea49c3d0b8e2e25818560d49fe23d
 
 logging.basicConfig(format='%(asctime)s [%(levelname)s] %(message)s', stream=sys.stderr,level=logging.INFO)
 
@@ -34,7 +24,6 @@ def cleanup():
 def create_db_connpool(host_name, user_name, user_password, db):
     connection_pool = None
     try:
-<<<<<<< HEAD
         if bootstrap_db(user_name, user_password, host_name, db):
             connection_pool = mariadb.ConnectionPool(
                 pool_name="streakbot_pool",
@@ -47,23 +36,10 @@ def create_db_connpool(host_name, user_name, user_password, db):
             return connection_pool
         else:
             raise Exception('Cannot bootstrap DB')
-=======
-        connection_pool = mysql.connector.pooling.MySQLConnectionPool(
-            pool_name="streakbot_pool",
-            pool_size=5,
-            pool_reset_session=True,
-            host=host_name,
-            database=db,
-            user=user_name,
-            password=user_password)
-        logging.info('Connection to MySQL DB successful')
-        return connection_pool
->>>>>>> 675d1d334baea49c3d0b8e2e25818560d49fe23d
     except Error as e:
         logging.exception(f'Error while connecting to MySQL using Connection pool {e}')
         sys.exit(1)
 
-<<<<<<< HEAD
 def bootstrap_db(user_name, user_password, host_name, db):
     try:
         db_conn = mariadb.connection(
@@ -102,8 +78,6 @@ def bootstrap_db(user_name, user_password, host_name, db):
     finally:
         cursor.close()
         db_conn.close()
-=======
->>>>>>> 675d1d334baea49c3d0b8e2e25818560d49fe23d
 try:
     with open('creds.json', 'r') as file:
         creds = json.load(file)
@@ -112,11 +86,7 @@ except:
     sys.exit(1)
 
 bot = commands.Bot(command_prefix='$')
-<<<<<<< HEAD
 db_pool = create_db_connpool(DB_HOST, creds['mysql']['user'], creds['mysql']['pass'], DB_NAME)
-=======
-db_pool = create_db_connpool('localhost', creds['mysql']['user'], creds['mysql']['pass'], DB_NAME)
->>>>>>> 675d1d334baea49c3d0b8e2e25818560d49fe23d
 streak = Streaks(db_pool, CMD_COOLDOWN)
 
 @bot.event
@@ -148,11 +118,7 @@ class Utility_Commands(commands.Cog, name='Utility Commands'):
         self.bot.help_command.cog = self
     @commands.command(help='Ping the bot to get the current latency',brief='Ping the bot')
     async def ping(self, ctx):
-<<<<<<< HEAD
         await ctx.send(f'Pong! Latency is {round(self.bot.latency*1000)}ms')
-=======
-        await ctx.send(f'Pong! Latency is {self.bot.latency*1000}ms')
->>>>>>> 675d1d334baea49c3d0b8e2e25818560d49fe23d
 
 class Fun_Commands(commands.Cog, name='Fun Commands'):
     def __init__(self, bot):
