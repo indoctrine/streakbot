@@ -32,7 +32,12 @@ class Streaks:
             logging.exception(f'Could not create user - {e}')
             return False
         finally:
+<<<<<<< HEAD
             cursor.close()
+=======
+            if(db_conn.is_connected()):
+                cursor.close()
+>>>>>>> 675d1d334baea49c3d0b8e2e25818560d49fe23d
 
     def check_user_exists(self, user_id, fulluser):
         try:
@@ -51,8 +56,14 @@ class Streaks:
         except Error as e:
             logging.exception(f'Could not check users table - {e}')
         finally:
+<<<<<<< HEAD
             cursor.close()
             db_conn.close()
+=======
+            if(db_conn.is_connected()):
+                cursor.close()
+                db_conn.close()
+>>>>>>> 675d1d334baea49c3d0b8e2e25818560d49fe23d
 
     def get_streak(self, user_id):
         try:
@@ -66,8 +77,14 @@ class Streaks:
             logging.exception(f'Unable to get streak - {e}')
             return False
         finally:
+<<<<<<< HEAD
             cursor.close()
             db_conn.close()
+=======
+            if(db_conn.is_connected()):
+                cursor.close()
+                db_conn.close()
+>>>>>>> 675d1d334baea49c3d0b8e2e25818560d49fe23d
 
     def get_leaderboard(self):
         try:
@@ -82,8 +99,14 @@ class Streaks:
             logging.exception(f'Unable to get streak - {e}')
             return False
         finally:
+<<<<<<< HEAD
             cursor.close()
             db_conn.close()
+=======
+            if(db_conn.is_connected()):
+                cursor.close()
+                db_conn.close()
+>>>>>>> 675d1d334baea49c3d0b8e2e25818560d49fe23d
 
     def timeout_streaks(self, timeout_duration=172800):
         try:
@@ -97,8 +120,14 @@ class Streaks:
             logging.exception(f'Could not timeout streaks - {e}')
             return None
         finally:
+<<<<<<< HEAD
             cursor.close()
             db_conn.close()
+=======
+            if(db_conn.is_connected()):
+                cursor.close()
+                db_conn.close()
+>>>>>>> 675d1d334baea49c3d0b8e2e25818560d49fe23d
 
     def set_streak(self, user_id, timeout_duration=172800):
         curr_time = datetime.now()
@@ -134,8 +163,14 @@ class Streaks:
             logging.exception(f'Could not update streak - {e}')
             return None
         finally:
+<<<<<<< HEAD
             cursor.close()
             db_conn.close()
+=======
+            if(db_conn.is_connected()):
+                cursor.close()
+                db_conn.close()
+>>>>>>> 675d1d334baea49c3d0b8e2e25818560d49fe23d
 
     def get_user_pb(self, user_id):
         try:
@@ -149,8 +184,14 @@ class Streaks:
             logging.exception(f'Unable to get personal best - {e}')
             return False
         finally:
+<<<<<<< HEAD
             cursor.close()
             db_conn.close()
+=======
+            if(db_conn.is_connected()):
+                cursor.close()
+                db_conn.close()
+>>>>>>> 675d1d334baea49c3d0b8e2e25818560d49fe23d
 
     def get_pb_leaderboard(self):
         try:
@@ -165,5 +206,11 @@ class Streaks:
             logging.exception(f'Unable to get personal best - {e}')
             return False
         finally:
+<<<<<<< HEAD
             cursor.close()
             db_conn.close()
+=======
+            if(db_conn.is_connected()):
+                cursor.close()
+                db_conn.close()
+>>>>>>> 675d1d334baea49c3d0b8e2e25818560d49fe23d
