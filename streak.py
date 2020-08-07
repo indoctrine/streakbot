@@ -1,7 +1,7 @@
 from discord.ext import commands
 from datetime import datetime
-from mysql.connector import Error
 import logging
+import mariadb
 import sys
 
 logging.basicConfig(format='%(asctime)s [%(levelname)s] %(message)s',
@@ -28,7 +28,7 @@ class Streaks:
                 return True
             else:
                 raise Exception('No rows to be written')
-        except Error as e:
+        except mariadb.Error as e:
             logging.exception(f'Could not create user - {e}')
             return False
         finally:
@@ -48,7 +48,7 @@ class Streaks:
                     return False
             else:
                 return True
-        except Error as e:
+        except mariadb.Error as e:
             logging.exception(f'Could not check users table - {e}')
         finally:
             cursor.close()
@@ -62,7 +62,7 @@ class Streaks:
             cursor.execute(query, (user_id,))
             streak = cursor.fetchone()
             return streak[0]
-        except Error as e:
+        except mariadb.Error as e:
             logging.exception(f'Unable to get streak - {e}')
             return False
         finally:
@@ -78,7 +78,7 @@ class Streaks:
             cursor.execute(query)
             results = cursor.fetchall()
             return results
-        except Error as e:
+        except mariadb.Error as e:
             logging.exception(f'Unable to get streak - {e}')
             return False
         finally:
@@ -93,7 +93,7 @@ class Streaks:
                     TIME_TO_SEC(TIMEDIFF(NOW(), daily_claimed)) >= %s'''
             cursor.execute(query, (timeout_duration,))
             db_conn.commit()
-        except Error as e:
+        except mariadb.Error as e:
             logging.exception(f'Could not timeout streaks - {e}')
             return None
         finally:
@@ -130,7 +130,7 @@ class Streaks:
             cursor.execute(query, (curr_time, user_id,))
             db_conn.commit()
             return True
-        except Error as e:
+        except mariadb.Error as e:
             logging.exception(f'Could not update streak - {e}')
             return None
         finally:
@@ -145,7 +145,7 @@ class Streaks:
             cursor.execute(query, (user_id,))
             results = cursor.fetchone()
             return results
-        except Error as e:
+        except mariadb.Error as e:
             logging.exception(f'Unable to get personal best - {e}')
             return False
         finally:
@@ -161,7 +161,7 @@ class Streaks:
             cursor.execute(query)
             results = cursor.fetchall()
             return results
-        except Error as e:
+        except mariadb.Error as e:
             logging.exception(f'Unable to get personal best - {e}')
             return False
         finally:

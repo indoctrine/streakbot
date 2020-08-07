@@ -28,6 +28,7 @@ def create_db_connpool(host_name, user_name, user_password, db):
             connection_pool = mariadb.ConnectionPool(
                 pool_name="streakbot_pool",
                 pool_size=5,
+                pool_reset_connection=True,
                 host=host_name,
                 user=user_name,
                 password=user_password,
