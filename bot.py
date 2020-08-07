@@ -5,9 +5,6 @@ import logging
 import sys
 import mariadb
 from mariadb import Error
-#import mysql.connector
-#from mysql.connector import Error
-#from mysql.connector import pooling
 import atexit
 from streak import Streaks
 
