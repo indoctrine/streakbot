@@ -103,6 +103,7 @@ class Streaks:
     def set_streak(self, user_id, timeout_duration=172800):
         curr_time = datetime.now()
         try:
+            self.rollover_streaks()
             db_conn = self.conn_pool.get_connection()
             cursor = db_conn.cursor()
             query = 'SELECT daily_claimed FROM users WHERE user_id = %s'
@@ -137,12 +138,13 @@ class Streaks:
             cursor.close()
             db_conn.close()
 
-    def get_user_pb(self, user_id):
+    def get_user_pb(self, user_id, year):
         try:
+            self.rollover_streaks()
             db_conn = self.conn_pool.get_connection()
             cursor = db_conn.cursor()
-            query = 'SELECT personal_best FROM users WHERE user_id = %s'
-            cursor.execute(query, (user_id,))
+            query = 'SELECT past_pb FROM streak_history WHERE user_id = %s AND year = %s'
+            cursor.execute(query, (user_id, year,))
             results = cursor.fetchone()
             return results
         except mariadb.Error as e:
@@ -152,17 +154,48 @@ class Streaks:
             cursor.close()
             db_conn.close()
 
-    def get_pb_leaderboard(self):
+    def get_pb_leaderboard(self, year):
         try:
+            self.rollover_streaks()
             db_conn = self.conn_pool.get_connection()
             cursor = db_conn.cursor()
-            query = '''SELECT user_id, personal_best FROM users
-                     ORDER BY personal_best desc LIMIT 10'''
-            cursor.execute(query)
+            query = '''SELECT user_id, past_pb FROM streak_history WHERE
+                    year = %s ORDER BY past_pb desc LIMIT 10'''
+            cursor.execute(query, (year,))
             results = cursor.fetchall()
             return results
         except mariadb.Error as e:
             logging.exception(f'Unable to get personal best - {e}')
+            return False
+        finally:
+            cursor.close()
+            db_conn.close()
+
+    def rollover_streaks(self):
+        try:
+            currdate = datetime.now()
+            curr_year = currdate.year
+            db_conn = self.conn_pool.get_connection()
+            cursor = db_conn.cursor()
+            query = '''SELECT MAX(daily_claimed) FROM users'''
+            cursor.execute(query)
+            results = cursor.fetchone()
+            if results[0] is None:
+                return False
+            db_year: datetime = results[0].year
+            query = f'''INSERT INTO streak_history (user_id, past_pb, year)
+                    SELECT user_id, personal_best, {db_year} FROM users
+                    ON DUPLICATE KEY UPDATE streak_history.past_pb =
+                    users.personal_best'''
+            cursor.execute(query)
+            if db_year > curr_year:
+                query == '''UPDATE users SET personal_best = 0'''
+                cursor.execute(query)
+            return True
+        except mariadb.IntegrityError as e:
+            logging.info(f'Duplicate key detected - updating instead')
+        except mariadb.Error as e:
+            logging.exception(f'Unable to rollover streaks - {e}')
             return False
         finally:
             cursor.close()

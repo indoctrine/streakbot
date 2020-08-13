@@ -6,6 +6,7 @@ import sys
 import mariadb
 from mariadb import Error
 import atexit
+from datetime import datetime
 from streak import Streaks
 
 CMD_COOLDOWN = 82800 # Cooldown is 23 hours
@@ -23,7 +24,7 @@ def create_db_connpool(host_name, user_name, user_password, db):
     try:
         if bootstrap_db(user_name, user_password, host_name, db):
             connection_pool = mariadb.ConnectionPool(
-                pool_name="streakbot_pool",
+                pool_name='streakbot_pool',
                 pool_size=5,
                 pool_reset_connection=True,
                 host=host_name,
@@ -46,10 +47,7 @@ def bootstrap_db(user_name, user_password, host_name, db):
                     host=host_name)
         cursor = db_conn.cursor()
         create_db = 'CREATE DATABASE IF NOT EXISTS {db}'
-        cursor.execute(create_db.format(db=DB_NAME))
-        db_conn.commit()
         use_db = 'USE {db}'
-        cursor.execute(use_db.format(db=DB_NAME))
         create_user_table = '''CREATE TABLE IF NOT EXISTS `users` (
                         	`user_id` VARCHAR(50) NOT NULL,
                         	`username` VARCHAR(50) NOT NULL,
@@ -59,15 +57,32 @@ def bootstrap_db(user_name, user_password, host_name, db):
                         	`personal_best` INT DEFAULT 0,
                         	PRIMARY KEY (`user_id`)
                         );'''
-        cursor.execute(create_user_table)
         create_logs_table = '''CREATE TABLE IF NOT EXISTS `logs` (
-                          `user_id` varchar(25) NOT NULL,
+                          `user_id` varchar(50) NOT NULL,
                           `month` date NOT NULL,
                           `time` int(11) DEFAULT NULL,
                           `pages` int(11) DEFAULT NULL,
                           PRIMARY KEY (`user_id`)
                         );'''
+        create_streak_history = '''CREATE TABLE IF NOT EXISTS `streak_history`
+                                (
+                                `user_id` VARCHAR(50) NOT NULL,
+                                `year` YEAR NOT NULL,
+                                `past_pb` INT NOT NULL,
+                                CONSTRAINT id PRIMARY KEY (user_id,year)
+                                )'''
+
+        # Create database
+        cursor.execute(create_db.format(db=DB_NAME))
+        db_conn.commit()
+
+        # Move cursor to database
+        cursor.execute(use_db.format(db=DB_NAME))
+
+        # Create the tables
+        cursor.execute(create_user_table)
         cursor.execute(create_logs_table)
+        cursor.execute(create_streak_history)
         db_conn.commit()
         return True
     except:
@@ -180,12 +195,17 @@ class Streak_Commands(commands.Cog, name='Streak Commands'):
 
 
     @commands.command(help=f'''Displays the personal best leaderboard for daily streak.
-    This leaderboard shows the best unbroken streaks of all time. You can check
-    the personal best of an individual user using {bot.command_prefix}pb <user>''',
+    This leaderboard shows the best unbroken streaks of the current year when run with {bot.command_prefix}pb.
+    To look up other years, run {bot.command_prefix}pb <year>.
+    You can check the personal best of an individual user using {bot.command_prefix}pb <year> <user>''',
     brief='Displays personal best leaderboard')
-    async def pb(self, ctx, user: discord.Member = None):
+    async def pb(self, ctx, year: int = None, user: discord.Member = None):
+        if year is None:
+            year = datetime.now().year
+        if year > datetime.now().year:
+            raise commands.CommandError
         if user is None:
-            personal_best = streak.get_pb_leaderboard()
+            personal_best = streak.get_pb_leaderboard(year)
             counter = 1
             pb_leaderboard_text = ''
             for user, pb in personal_best:
@@ -195,12 +215,12 @@ class Streak_Commands(commands.Cog, name='Streak Commands'):
 
             embed = discord.Embed(color=0x00bfff)
             embed.set_thumbnail(url=ctx.guild.icon_url)
-            embed.add_field(name='Personal Best Leaderboard',
+            embed.add_field(name=f'{year} Personal Best Leaderboard',
                             value=pb_leaderboard_text, inline=True)
             embed.set_footer(text=f'Set new records by drawing each day and using {bot.command_prefix}daily!')
             await ctx.send(embed=embed)
         else:
-            personal_best = streak.get_user_pb(user.id)
+            personal_best = streak.get_user_pb(user.id, year)
             if personal_best is not None:
                 personal_best = personal_best[0]
                 await ctx.send(f'Current personal best for {user} is {personal_best}')
@@ -210,7 +230,9 @@ class Streak_Commands(commands.Cog, name='Streak Commands'):
     @pb.error
     async def pb_error(self, ctx, error):
         if isinstance(error, commands.BadArgument):
-            await ctx.send("Unable to look up personal best for that user.")
+            await ctx.send('Unable to look up personal best - Invalid argument(s)')
+        elif isinstance(error, commands.CommandError):
+            await ctx.send(f'Year is in the future, cannot return results')
         else:
             raise error
 
