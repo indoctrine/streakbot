@@ -13,27 +13,6 @@ class Streaks:
         self.conn_pool = db_pool
         self.cooldown = cmd_cd
 
-    def create_user(self, user_id, fulluser, db_conn):
-        try:
-            cursor = db_conn.cursor()
-            query = '''INSERT INTO users (user_id, username, discriminator,
-                        streak, personal_best) VALUES (%s, %s, %s, %s, %s)'''
-            fulluser = str(fulluser)
-            username = fulluser.split('#')[0]
-            discriminator = fulluser.split('#')[1]
-            cursor.execute(query, (user_id, username, discriminator, 0, 0,))
-            if cursor.rowcount > 0:
-                db_conn.commit()
-                logging.info(f'User {fulluser} created')
-                return True
-            else:
-                raise Exception('No rows to be written')
-        except mariadb.Error as e:
-            logging.exception(f'Could not create user - {e}')
-            return False
-        finally:
-            cursor.close()
-
     def check_user_exists(self, user_id, fulluser):
         try:
             db_conn = self.conn_pool.get_connection()
@@ -53,6 +32,29 @@ class Streaks:
         finally:
             cursor.close()
             db_conn.close()
+
+    def create_user(self, user_id, fulluser, db_conn):
+        try:
+            fulluser = str(fulluser)
+            username = fulluser.split('#')[0]
+            discriminator = fulluser.split('#')[1]
+
+            cursor = db_conn.cursor()
+            query = '''INSERT INTO users (user_id, username, discriminator,
+                        streak, personal_best) VALUES (%s, %s, %s, %s, %s)'''
+            cursor.execute(query, (user_id, username, discriminator, 0, 0,))
+
+            if cursor.rowcount > 0:
+                db_conn.commit()
+                logging.info(f'User {fulluser} created')
+                return True
+            else:
+                raise Exception('No rows to be written')
+        except mariadb.Error as e:
+            logging.exception(f'Could not create user - {e}')
+            return False
+        finally:
+            cursor.close()
 
     def get_streak(self, user_id):
         try:
@@ -103,7 +105,6 @@ class Streaks:
     def set_streak(self, user_id, timeout_duration=172800):
         curr_time = datetime.now()
         try:
-            self.rollover_streaks()
             db_conn = self.conn_pool.get_connection()
             cursor = db_conn.cursor()
             query = 'SELECT daily_claimed FROM users WHERE user_id = %s'
@@ -115,20 +116,39 @@ class Streaks:
                 cd_remaining = cd_remaining.total_seconds()
                 if cd_remaining <= self.cooldown:
                     cd_delta = self.cooldown - cd_remaining
+                    # Send cooldown message to user
                     raise commands.CommandOnCooldown(self.cooldown, cd_delta)
                     return None
-                # 2 days without claiming
+                # Reset if cooldown exceeds timeout
                 elif cd_remaining >= timeout_duration:
                     query = '''UPDATE users SET daily_claimed = %s, streak = 1
                             WHERE user_id = %s'''
                     cursor.execute(query, (curr_time, user_id,))
                     db_conn.commit()
                     return False
+            # Update the current year and personal best counters
             query = '''UPDATE users SET daily_claimed = %s,
                     streak = streak + 1, personal_best = CASE WHEN
                     streak + 1 > personal_best THEN streak
-                    ELSE personal_best END WHERE user_id = %s'''
-            cursor.execute(query, (curr_time, user_id,))
+                    ELSE personal_best END,
+                    current_year_best = CASE WHEN
+                    streak + 1 > current_year_best THEN streak
+                    ELSE current_year_best END
+                    WHERE user_id = %s'''
+
+            check_date = '''SELECT MAX(daily_claimed) FROM users'''
+            cursor.execute(check_date)
+            results = cursor.fetchone()
+            if results[0] is not None:
+                db_year: datetime = results[0].year
+                # Check for new year and rollover
+                if curr_time.year > db_year:
+                    self.rollover_streaks()
+                    cursor.execute(query, (curr_time, user_id,))
+                else:
+                    # Ensure the history table is correctly updated for year
+                    cursor.execute(query, (curr_time, user_id,))
+                    self.rollover_streaks()
             db_conn.commit()
             return True
         except mariadb.Error as e:
@@ -140,11 +160,14 @@ class Streaks:
 
     def get_user_pb(self, user_id, year):
         try:
-            self.rollover_streaks()
             db_conn = self.conn_pool.get_connection()
             cursor = db_conn.cursor()
-            query = 'SELECT past_pb FROM streak_history WHERE user_id = %s AND year = %s'
-            cursor.execute(query, (user_id, year,))
+            if year == 0:
+                query = 'SELECT personal_best FROM users WHERE user_id = %s'
+                cursor.execute(query, (user_id,))
+            else:
+                query = 'SELECT past_pb FROM streak_history WHERE user_id = %s AND year = %s'
+                cursor.execute(query, (user_id, year,))
             results = cursor.fetchone()
             return results
         except mariadb.Error as e:
@@ -156,12 +179,16 @@ class Streaks:
 
     def get_pb_leaderboard(self, year):
         try:
-            self.rollover_streaks()
             db_conn = self.conn_pool.get_connection()
             cursor = db_conn.cursor()
-            query = '''SELECT user_id, past_pb FROM streak_history WHERE
-                    year = %s ORDER BY past_pb desc LIMIT 10'''
-            cursor.execute(query, (year,))
+            if year == 0:
+                query = '''SELECT user_id, personal_best FROM users ORDER BY
+                        personal_best DESC LIMIT 10'''
+                cursor.execute(query)
+            else:
+                query = '''SELECT user_id, past_pb FROM streak_history WHERE
+                        year = %s ORDER BY past_pb DESC LIMIT 10'''
+                cursor.execute(query, (year,))
             results = cursor.fetchall()
             return results
         except mariadb.Error as e:
@@ -184,12 +211,12 @@ class Streaks:
                 return False
             db_year: datetime = results[0].year
             query = f'''INSERT INTO streak_history (user_id, past_pb, year)
-                    SELECT user_id, personal_best, {db_year} FROM users
+                    SELECT user_id, current_year_best, {db_year} FROM users
                     ON DUPLICATE KEY UPDATE streak_history.past_pb =
-                    users.personal_best'''
+                    users.current_year_best'''
             cursor.execute(query)
             if db_year > curr_year:
-                query == '''UPDATE users SET personal_best = 0, streak = 0'''
+                query = '''UPDATE users SET current_year_best = 0, streak = 0'''
                 cursor.execute(query)
             return True
         except mariadb.Error as e:

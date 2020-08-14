@@ -55,6 +55,7 @@ def bootstrap_db(user_name, user_password, host_name, db):
                         	`daily_claimed` DATETIME,
                         	`streak` INT DEFAULT 0,
                         	`personal_best` INT DEFAULT 0,
+                            `current_year_best` INT DEFAULT 0,
                         	PRIMARY KEY (`user_id`)
                         );'''
         create_logs_table = '''CREATE TABLE IF NOT EXISTS `logs` (
@@ -195,13 +196,11 @@ class Streak_Commands(commands.Cog, name='Streak Commands'):
 
 
     @commands.command(help=f'''Displays the personal best leaderboard for daily streak.
-    This leaderboard shows the best unbroken streaks of the current year when run with {bot.command_prefix}pb.
+    This leaderboard shows the best unbroken streaks of all time when run with {bot.command_prefix}pb.
     To look up other years, run {bot.command_prefix}pb <year>.
     You can check the personal best of an individual user using {bot.command_prefix}pb <year> <user>''',
     brief='Displays personal best leaderboard')
-    async def pb(self, ctx, year: int = None, user: discord.Member = None):
-        if year is None:
-            year = datetime.now().year
+    async def pb(self, ctx, year: int = 0, user: discord.Member = None):
         if year > datetime.now().year:
             raise commands.CommandError
         if user is None:
@@ -215,7 +214,7 @@ class Streak_Commands(commands.Cog, name='Streak Commands'):
 
             embed = discord.Embed(color=0x00bfff)
             embed.set_thumbnail(url=ctx.guild.icon_url)
-            embed.add_field(name=f'{year} Personal Best Leaderboard',
+            embed.add_field(name=f'{year if year > 0 else "All Time"} Personal Best Leaderboard',
                             value=pb_leaderboard_text, inline=True)
             embed.set_footer(text=f'Set new records by drawing each day and using {bot.command_prefix}daily!')
             await ctx.send(embed=embed)
@@ -223,7 +222,7 @@ class Streak_Commands(commands.Cog, name='Streak Commands'):
             personal_best = streak.get_user_pb(user.id, year)
             if personal_best is not None:
                 personal_best = personal_best[0]
-                await ctx.send(f'Personal best for {year} for {user} is {personal_best}')
+                await ctx.send(f'Personal best of {year if year > 0 else "all time"} for {user} is {personal_best}')
             else:
                 raise commands.BadArgument
 
