@@ -189,11 +189,9 @@ class Streaks:
                     users.personal_best'''
             cursor.execute(query)
             if db_year > curr_year:
-                query == '''UPDATE users SET personal_best = 0'''
+                query == '''UPDATE users SET personal_best = 0, streak = 0'''
                 cursor.execute(query)
             return True
-        except mariadb.IntegrityError as e:
-            logging.info(f'Duplicate key detected - updating instead')
         except mariadb.Error as e:
             logging.exception(f'Unable to rollover streaks - {e}')
             return False

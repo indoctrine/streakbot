@@ -223,7 +223,7 @@ class Streak_Commands(commands.Cog, name='Streak Commands'):
             personal_best = streak.get_user_pb(user.id, year)
             if personal_best is not None:
                 personal_best = personal_best[0]
-                await ctx.send(f'Current personal best for {user} is {personal_best}')
+                await ctx.send(f'Personal best for {year} for {user} is {personal_best}')
             else:
                 raise commands.BadArgument
 
