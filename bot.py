@@ -110,11 +110,9 @@ async def on_ready():
 
 @bot.event
 async def on_message(message):
+    channel = message.channel.id
     await bot.process_commands(message)
-    channel = message.channel
-    if channel == 'bot-testing':
-        await print('Message from {0.author}: {0.content}'.format(message))
-
+    # To implement message sending command when DM'd
 
 @bot.event
 async def on_command_error(ctx, error):
@@ -185,8 +183,11 @@ class Streak_Commands(commands.Cog, name='Streak Commands'):
         leaderboard_text = ''
         for user, curr_streak in leaderboard:
             username = self.bot.get_user(int(user))
-            leaderboard_text += f'**{counter}.** {username}  -  {curr_streak}\n'
-            counter += 1
+            if username is not None:
+                leaderboard_text += f'**{counter}.** {username}  -  {curr_streak}\n'
+                counter += 1
+            if counter > 10:
+                break
 
         embed = discord.Embed(color=0x00bfff)
         embed.set_thumbnail(url=ctx.guild.icon_url)
@@ -209,8 +210,11 @@ class Streak_Commands(commands.Cog, name='Streak Commands'):
             pb_leaderboard_text = ''
             for user, pb in personal_best:
                 username = self.bot.get_user(int(user))
-                pb_leaderboard_text += f'**{counter}.** {username}  -  {pb}\n'
-                counter += 1
+                if username is not None:
+                    pb_leaderboard_text += f'**{counter}.** {username}  -  {pb}\n'
+                    counter += 1
+                if counter > 10:
+                    break
 
             embed = discord.Embed(color=0x00bfff)
             embed.set_thumbnail(url=ctx.guild.icon_url)

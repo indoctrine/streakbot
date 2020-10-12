@@ -76,7 +76,7 @@ class Streaks:
             db_conn = self.conn_pool.get_connection()
             cursor = db_conn.cursor()
             query = '''SELECT user_id, streak FROM users
-                    ORDER BY streak desc LIMIT 10'''
+                    ORDER BY streak desc'''
             cursor.execute(query)
             results = cursor.fetchall()
             return results
@@ -92,7 +92,7 @@ class Streaks:
             db_conn = self.conn_pool.get_connection()
             cursor = db_conn.cursor()
             query = '''UPDATE users SET streak = 0 WHERE
-                    TIME_TO_SEC(TIMEDIFF(NOW(), daily_claimed)) >= %s'''
+                    daily_claimed < NOW() - INTERVAL %s SECOND;'''
             cursor.execute(query, (timeout_duration,))
             db_conn.commit()
         except mariadb.Error as e:
@@ -183,11 +183,11 @@ class Streaks:
             cursor = db_conn.cursor()
             if year == 0:
                 query = '''SELECT user_id, personal_best FROM users ORDER BY
-                        personal_best DESC LIMIT 10'''
+                        personal_best DESC'''
                 cursor.execute(query)
             else:
                 query = '''SELECT user_id, past_pb FROM streak_history WHERE
-                        year = %s ORDER BY past_pb DESC LIMIT 10'''
+                        year = %s ORDER BY past_pb DESC'''
                 cursor.execute(query, (year,))
             results = cursor.fetchall()
             return results
