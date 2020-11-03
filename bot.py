@@ -99,7 +99,9 @@ except:
     logging.exception('Could not load credentials file')
     sys.exit(1)
 
-bot = commands.Bot(command_prefix='$', case_insensitive=True)
+intents = discord.Intents.default()
+intents.members = True
+bot = commands.Bot(command_prefix='$', case_insensitive=True, intents=intents)
 db_pool = create_db_connpool(DB_HOST, creds['mysql']['user'], creds['mysql']['pass'], DB_NAME)
 streak = Streaks(db_pool, CMD_COOLDOWN)
 
