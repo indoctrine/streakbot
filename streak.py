@@ -133,7 +133,8 @@ class Streaks:
                     ELSE personal_best END,
                     current_year_best = CASE WHEN
                     streak + 1 > current_year_best THEN streak
-                    ELSE current_year_best END
+                    ELSE current_year_best END,
+                    current_year_streak = current_year_streak + 1
                     WHERE user_id = %s'''
 
             check_date = '''SELECT MAX(daily_claimed) FROM users'''
@@ -142,17 +143,40 @@ class Streaks:
             if results[0] is not None:
                 db_year: datetime = results[0].year
                 # Check for new year and rollover
-                if curr_time.year > db_year:
-                    self.rollover_streaks()
+                is_new_year = self.compare_db_year()
+                if is_new_year:
+                    self.rollover_streaks(is_new_year)
                     cursor.execute(query, (curr_time, user_id,))
                 else:
                     # Ensure the history table is correctly updated for year
                     cursor.execute(query, (curr_time, user_id,))
-                    self.rollover_streaks()
+                    self.rollover_streaks(is_new_year)
             db_conn.commit()
             return True
         except mariadb.Error as e:
             logging.exception(f'Could not update streak - {e}')
+            return None
+        finally:
+            cursor.close()
+            db_conn.close()
+
+    def compare_db_year(self):
+        # Checks if current year is less than DB year
+        current_year = datetime.now().year
+        try:
+            db_conn = self.conn_pool.get_connection()
+            cursor = db_conn.cursor()
+            query = '''SELECT MAX(daily_claimed) FROM users'''
+            cursor.execute(query)
+            results = cursor.fetchone()[0]
+            if results is not None:
+                db_year: datetime = results.year
+                if current_year > db_year:
+                    return True
+                else:
+                    return False
+        except mariadb.Error as e:
+            logging.exception(f'Database error {e}')
             return None
         finally:
             cursor.close()
@@ -198,25 +222,23 @@ class Streaks:
             cursor.close()
             db_conn.close()
 
-    def rollover_streaks(self):
+    def rollover_streaks(self, is_new_year):
         try:
             currdate = datetime.now()
             curr_year = currdate.year
             db_conn = self.conn_pool.get_connection()
             cursor = db_conn.cursor()
-            query = '''SELECT MAX(daily_claimed) FROM users'''
-            cursor.execute(query)
-            results = cursor.fetchone()
-            if results[0] is None:
-                return False
-            db_year: datetime = results[0].year
+            if is_new_year:
+                db_year = curr_year - 1
+            else:
+                db_year = curr_year
             query = f'''INSERT INTO streak_history (user_id, past_pb, year)
                     SELECT user_id, current_year_best, {db_year} FROM users
                     ON DUPLICATE KEY UPDATE streak_history.past_pb =
                     users.current_year_best'''
             cursor.execute(query)
             if db_year > curr_year:
-                query = '''UPDATE users SET current_year_best = 0, streak = 0'''
+                query = '''UPDATE users SET current_year_best = 0, current_year_streak = 0'''
                 cursor.execute(query)
             return True
         except mariadb.Error as e:

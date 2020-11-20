@@ -56,6 +56,7 @@ def bootstrap_db(user_name, user_password, host_name, db):
                         	`streak` INT DEFAULT 0,
                         	`personal_best` INT DEFAULT 0,
                             `current_year_best` INT DEFAULT 0,
+                            `current_year_streak` INT DEFAULT 0,
                         	PRIMARY KEY (`user_id`)
                         );'''
         create_logs_table = '''CREATE TABLE IF NOT EXISTS `logs` (
