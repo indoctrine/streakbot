@@ -137,20 +137,15 @@ class Streaks:
                     current_year_streak = current_year_streak + 1
                     WHERE user_id = %s'''
 
-            check_date = '''SELECT MAX(daily_claimed) FROM users'''
-            cursor.execute(check_date)
-            results = cursor.fetchone()
-            if results[0] is not None:
-                db_year: datetime = results[0].year
-                # Check for new year and rollover
-                is_new_year = self.compare_db_year()
-                if is_new_year:
-                    self.rollover_streaks(is_new_year)
-                    cursor.execute(query, (curr_time, user_id,))
-                else:
-                    # Ensure the history table is correctly updated for year
-                    cursor.execute(query, (curr_time, user_id,))
-                    self.rollover_streaks(is_new_year)
+            # Check for new year and rollover
+            is_new_year = self.compare_db_year()
+            if is_new_year:
+                self.rollover_streaks(is_new_year)
+                cursor.execute(query, (curr_time, user_id,))
+            else:
+                # Ensure the history table is correctly updated for year
+                cursor.execute(query, (curr_time, user_id,))
+                self.rollover_streaks(is_new_year)
             db_conn.commit()
             return True
         except mariadb.Error as e:
