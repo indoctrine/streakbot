@@ -117,16 +117,6 @@ async def on_message(message):
     await bot.process_commands(message)
     # To implement message sending command when DM'd
 
-@bot.event
-async def on_command_error(ctx, error):
-    error = getattr(error, "original", error)
-    if isinstance(error, commands.CommandOnCooldown):
-        min, sec = divmod(error.retry_after, 60)
-        hour, min = divmod(min, 60)
-        await ctx.send(f'Try again in {int(hour)} hours, {int(min)} minutes, and {int(sec)} seconds')
-    else:
-        raise error  # re-raise the error so all the errors will still show up in console
-
 class Utility_Commands(commands.Cog, name='Utility Commands'):
     def __init__(self, bot):
         self.bot = bot
@@ -175,6 +165,14 @@ class Streak_Commands(commands.Cog, name='Streak Commands'):
         else:
             await ctx.send(f'Could not update daily for {ctx.message.author}')
 
+    @daily.error
+    async def daily_error(self, ctx, error):
+        if isinstance(error, commands.CommandOnCooldown):
+            min, sec = divmod(error.retry_after, 60)
+            hour, min = divmod(min, 60)
+            await ctx.send(f'Try again in {int(hour)} hours, {int(min)} minutes, and {int(sec)} seconds')
+        else:
+            raise error
 
     @commands.command(help='''Displays the current leaderboard for daily streak. Streaks
     are timed out when this command is run to ensure all information is up to date.''',
