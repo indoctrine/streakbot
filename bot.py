@@ -35,6 +35,8 @@ intents = discord.Intents.default()
 intents.members = True # Intent allows us to get users that haven't been seen yet
 bot = commands.Bot(command_prefix='$', case_insensitive=True, intents=intents)
 db_pool = db.create_db_connpool(DB_HOST, creds['mysql']['user'], creds['mysql']['pass'], DB_NAME)
+
+# Load Modules #
 streak = Streaks(db_pool, CMD_COOLDOWN)
 
 @bot.event
@@ -66,7 +68,6 @@ class Fun_Commands(commands.Cog, name='Fun Commands'):
             await ctx.send(f'Sending hugs to <@!{user.id}> <:takenrg:670936332822118420>')
         else:
             await ctx.send('Hugs for who?')
-
 
     @hug.error
     async def hug_error(self, ctx, error):
