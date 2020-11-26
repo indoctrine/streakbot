@@ -6,7 +6,7 @@ import sys
 import atexit
 from datetime import datetime
 from streak import Streaks
-import db
+from db import Database
 
 CMD_COOLDOWN = 82800 # Cooldown is 23 hours
 DB_NAME = 'streakbot' # Must be SQL friendly
@@ -18,7 +18,6 @@ logging.basicConfig(format='%(asctime)s [%(levelname)s] %(message)s', stream=sys
 if not DB_NAME.isalnum():
     logging.exception('Invalid characters in SQL database name')
     sys.exit(1)
-
 
 @atexit.register
 def cleanup():
@@ -34,7 +33,7 @@ except:
 intents = discord.Intents.default()
 intents.members = True # Intent allows us to get users that haven't been seen yet
 bot = commands.Bot(command_prefix='$', case_insensitive=True, intents=intents)
-db_pool = db.create_db_connpool(DB_HOST, creds['mysql']['user'], creds['mysql']['pass'], DB_NAME)
+db_pool = Database(DB_HOST, creds['mysql']['user'], creds['mysql']['pass'], DB_NAME)
 
 # Load Modules #
 streak = Streaks(db_pool, CMD_COOLDOWN)
