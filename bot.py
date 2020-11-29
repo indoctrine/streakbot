@@ -4,21 +4,26 @@ import json
 import logging
 import sys
 import atexit
+import time
+import asyncio
 from datetime import datetime
 from streak import Streaks
-import db
+from db import Database
 
-CMD_COOLDOWN = 82800 # Cooldown is 23 hours
+CMD_COOLDOWN = 82800 # Cooldown is 23 hours (82800)
+STREAK_TIMEOUT = 172800 # Timeout after 48 hours (172800)
+REMINDER_THRESHOLD = 3600 # Threshold for reminders
 DB_NAME = 'streakbot' # Must be SQL friendly
 DB_HOST = 'localhost'
+DB_POOL_SIZE = 10
 CREDS_LOCATION = 'creds.json'
+reminders = {}
 
 logging.basicConfig(format='%(asctime)s [%(levelname)s] %(message)s', stream=sys.stderr,level=logging.INFO)
 
 if not DB_NAME.isalnum():
     logging.exception('Invalid characters in SQL database name')
     sys.exit(1)
-
 
 @atexit.register
 def cleanup():
@@ -34,8 +39,10 @@ except:
 intents = discord.Intents.default()
 intents.members = True # Intent allows us to get users that haven't been seen yet
 bot = commands.Bot(command_prefix='$', case_insensitive=True, intents=intents)
-db_pool = db.create_db_connpool(DB_HOST, creds['mysql']['user'], creds['mysql']['pass'], DB_NAME)
-streak = Streaks(db_pool, CMD_COOLDOWN)
+db_pool = Database(DB_HOST, creds['mysql']['user'], creds['mysql']['pass'], DB_NAME, DB_POOL_SIZE)
+
+# Load Modules #
+streak = Streaks(db_pool, CMD_COOLDOWN, STREAK_TIMEOUT)
 
 @bot.event
 async def on_ready():
@@ -66,7 +73,6 @@ class Fun_Commands(commands.Cog, name='Fun Commands'):
             await ctx.send(f'Sending hugs to <@!{user.id}> <:takenrg:670936332822118420>')
         else:
             await ctx.send('Hugs for who?')
-
 
     @hug.error
     async def hug_error(self, ctx, error):
@@ -101,7 +107,16 @@ class Streak_Commands(commands.Cog, name='Streak Commands'):
         if isinstance(error, commands.CommandOnCooldown):
             min, sec = divmod(error.retry_after, 60)
             hour, min = divmod(min, 60)
+            user_id = ctx.message.author.id
             await ctx.send(f'Try again in {int(hour)} hours, {int(min)} minutes, and {int(sec)} seconds')
+            if error.retry_after <= 3600:
+                print("Time less than an hour")
+                if user_id not in reminders:
+                    print("User ID not in reminders")
+                    reminders[user_id] = error.retry_after
+                    await asyncio.sleep(error.retry_after)
+                    await ctx.send(f"Hey <@!{user_id}>, it\'s time to claim your daily")
+                    reminders.pop(user_id)
         else:
             raise error
 
