@@ -4,18 +4,19 @@ import logging
 import sys
 
 class Database:
-    def __init__(self, host_name, user_name, user_password, db):
+    def __init__(self, host_name, user_name, user_password, db, pool_size):
         self.conn_pool = None
         self.host_name = host_name
         self.user_name = user_name
         self.user_password = user_password
         self.db = db
+        self.pool_size = pool_size
 
         try:
             if self.bootstrap_db(user_name, user_password, host_name, db):
                 self.conn_pool = mariadb.ConnectionPool(
                     pool_name='streakbot_pool',
-                    pool_size=5,
+                    pool_size=self.pool_size,
                     pool_reset_connection=True,
                     host=host_name,
                     user=user_name,
@@ -34,7 +35,9 @@ class Database:
             db_conn.close()
             return True
         except mariadb.PoolError as e:
-            for x in range(5):
+            print(e)
+            print("Segfault here?")
+            for x in range(self.pool_size):
                 tempconn = mariadb.connect(
                     user=self.user_name,
                     password=self.user_password,

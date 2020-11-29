@@ -8,9 +8,10 @@ logging.basicConfig(format='%(asctime)s [%(levelname)s] %(message)s',
                     stream=sys.stderr, level=logging.INFO)
 
 class Streaks:
-    def __init__(self, db_pool, cmd_cd):
+    def __init__(self, db_pool, cmd_cd, timeout):
         self.db_pool = db_pool
         self.cooldown = cmd_cd
+        self.timeout = timeout
 
     def check_db_conn(self, pool):
         if pool.refresh_db_pool():
@@ -21,7 +22,7 @@ class Streaks:
 
     def check_user_exists(self, user_id, fulluser):
         try:
-            self.check_db_conn(self.db_pool)
+            #self.check_db_conn(self.db_pool)
             db_conn = self.db_pool.conn_pool.get_connection()
             cursor = db_conn.cursor()
             query = 'SELECT * FROM users WHERE user_id = %s'
@@ -65,7 +66,7 @@ class Streaks:
 
     def get_streak(self, user_id):
         try:
-            self.check_db_conn(self.db_pool)
+            #self.check_db_conn(self.db_pool)
             db_conn = self.db_pool.conn_pool.get_connection()
             cursor = db_conn.cursor()
             query = 'SELECT streak FROM users WHERE user_id = %s'
@@ -81,7 +82,7 @@ class Streaks:
 
     def get_leaderboard(self):
         try:
-            self.check_db_conn(self.db_pool)
+            #self.check_db_conn(self.db_pool)
             db_conn = self.db_pool.conn_pool.get_connection()
             cursor = db_conn.cursor()
             query = '''SELECT user_id, streak FROM users
@@ -96,14 +97,14 @@ class Streaks:
             cursor.close()
             db_conn.close()
 
-    def timeout_streaks(self, timeout_duration=172800):
+    def timeout_streaks(self):
         try:
-            self.check_db_conn(self.db_pool)
+            #self.check_db_conn(self.db_pool)
             db_conn = self.db_pool.conn_pool.get_connection()
             cursor = db_conn.cursor()
             query = '''UPDATE users SET streak = 0 WHERE
                     daily_claimed < NOW() - INTERVAL %s SECOND;'''
-            cursor.execute(query, (timeout_duration,))
+            cursor.execute(query, (self.timeout,))
             db_conn.commit()
         except mariadb.Error as e:
             logging.exception(f'Could not timeout streaks - {e}')
@@ -112,11 +113,13 @@ class Streaks:
             cursor.close()
             db_conn.close()
 
-    def set_streak(self, user_id, timeout_duration=172800):
+    def set_streak(self, user_id):
         curr_time = datetime.now()
         try:
-            self.check_db_conn(self.db_pool)
+            #self.check_db_conn(self.db_pool)
+            print("Before fault?")
             db_conn = self.db_pool.conn_pool.get_connection()
+            print("After fault?")
             cursor = db_conn.cursor()
             query = 'SELECT daily_claimed FROM users WHERE user_id = %s'
             cursor.execute(query, (user_id,))
@@ -125,13 +128,13 @@ class Streaks:
             if last_claimed is not None:
                 cd_remaining = curr_time - last_claimed
                 cd_remaining = cd_remaining.total_seconds()
-                if cd_remaining <= self.cooldown:
+                if cd_remaining < self.cooldown:
                     cd_delta = self.cooldown - cd_remaining
                     # Send cooldown message to user
                     raise commands.CommandOnCooldown(self.cooldown, cd_delta)
                     return None
                 # Reset if cooldown exceeds timeout
-                elif cd_remaining >= timeout_duration:
+                elif cd_remaining >= self.timeout:
                     query = '''UPDATE users SET daily_claimed = %s, streak = 1
                             WHERE user_id = %s'''
                     cursor.execute(query, (curr_time, user_id,))
@@ -190,7 +193,7 @@ class Streaks:
 
     def get_user_pb(self, user_id, year):
         try:
-            self.check_db_conn(self.db_pool)
+            #self.check_db_conn(self.db_pool)
             db_conn = self.db_pool.conn_pool.get_connection()
             cursor = db_conn.cursor()
             if year == 0:
@@ -210,7 +213,7 @@ class Streaks:
 
     def get_pb_leaderboard(self, year):
         try:
-            self.check_db_conn(self.db_pool)
+            #self.check_db_conn(self.db_pool)
             db_conn = self.db_pool.conn_pool.get_connection()
             cursor = db_conn.cursor()
             if year == 0:
@@ -235,7 +238,6 @@ class Streaks:
             currdate = datetime.now()
             curr_year = currdate.year
 
-            self.check_db_conn(self.db_pool)
             db_conn = self.db_pool.conn_pool.get_connection()
             cursor = db_conn.cursor()
             if is_new_year:
@@ -247,7 +249,7 @@ class Streaks:
                     ON DUPLICATE KEY UPDATE streak_history.past_pb =
                     users.current_year_best'''
             cursor.execute(query)
-            if db_year > curr_year:
+            if is_new_year:
                 query = '''UPDATE users SET current_year_best = 0, current_year_streak = 0'''
                 cursor.execute(query)
             return True
