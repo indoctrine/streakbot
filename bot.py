@@ -39,7 +39,11 @@ except:
 intents = discord.Intents.default()
 intents.members = True # Intent allows us to get users that haven't been seen yet
 bot = commands.Bot(command_prefix='$', case_insensitive=True, intents=intents)
+
+
 db_pool = Database(DB_HOST, creds['mysql']['user'], creds['mysql']['pass'], DB_NAME, DB_POOL_SIZE)
+asyncio.get_event_loop().run_until_complete(db_pool.bootstrap_db())
+asyncio.get_event_loop().run_until_complete(db_pool.create_pool())
 
 # Load Modules #
 streak = Streaks(db_pool, CMD_COOLDOWN, STREAK_TIMEOUT)
@@ -109,10 +113,8 @@ class Streak_Commands(commands.Cog, name='Streak Commands'):
             hour, min = divmod(min, 60)
             user_id = ctx.message.author.id
             await ctx.send(f'Try again in {int(hour)} hours, {int(min)} minutes, and {int(sec)} seconds')
-            if error.retry_after <= 3600:
-                print("Time less than an hour")
+            if error.retry_after <= REMINDER_THRESHOLD:
                 if user_id not in reminders:
-                    print("User ID not in reminders")
                     reminders[user_id] = error.retry_after
                     await asyncio.sleep(error.retry_after)
                     await ctx.send(f"Hey <@!{user_id}>, it\'s time to claim your daily")
@@ -124,8 +126,7 @@ class Streak_Commands(commands.Cog, name='Streak Commands'):
     are timed out when this command is run to ensure all information is up to date.''',
     brief='Displays current streak leaderboard')
     async def leaderboard(self, ctx):
-        streak.timeout_streaks()
-        leaderboard = streak.get_leaderboard()
+        leaderboard = await streak.get_leaderboard()
         counter = 1
         leaderboard_text = ''
         for user, curr_streak in leaderboard:
@@ -133,8 +134,6 @@ class Streak_Commands(commands.Cog, name='Streak Commands'):
             if username is not None:
                 leaderboard_text += f'**{counter}.** {username}  -  {curr_streak}\n'
                 counter += 1
-            if counter > 10:
-                break
 
         embed = discord.Embed(color=0x00bfff)
         embed.set_thumbnail(url=ctx.guild.icon_url)
@@ -160,8 +159,6 @@ class Streak_Commands(commands.Cog, name='Streak Commands'):
                 if username is not None:
                     pb_leaderboard_text += f'**{counter}.** {username}  -  {pb}\n'
                     counter += 1
-                if counter > 10:
-                    break
 
             embed = discord.Embed(color=0x00bfff)
             embed.set_thumbnail(url=ctx.guild.icon_url)

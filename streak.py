@@ -2,6 +2,8 @@ from discord.ext import commands
 from datetime import datetime
 import logging
 import mariadb
+import aiomysql
+import asyncio
 import sys
 
 logging.basicConfig(format='%(asctime)s [%(levelname)s] %(message)s',
@@ -22,7 +24,6 @@ class Streaks:
 
     def check_user_exists(self, user_id, fulluser):
         try:
-            #self.check_db_conn(self.db_pool)
             db_conn = self.db_pool.conn_pool.get_connection()
             cursor = db_conn.cursor()
             query = 'SELECT * FROM users WHERE user_id = %s'
@@ -66,7 +67,6 @@ class Streaks:
 
     def get_streak(self, user_id):
         try:
-            #self.check_db_conn(self.db_pool)
             db_conn = self.db_pool.conn_pool.get_connection()
             cursor = db_conn.cursor()
             query = 'SELECT streak FROM users WHERE user_id = %s'
@@ -80,46 +80,40 @@ class Streaks:
             cursor.close()
             db_conn.close()
 
-    def get_leaderboard(self):
+    async def get_leaderboard(self):
         try:
-            #self.check_db_conn(self.db_pool)
-            db_conn = self.db_pool.conn_pool.get_connection()
-            cursor = db_conn.cursor()
-            query = '''SELECT user_id, streak FROM users
-                    ORDER BY streak desc'''
-            cursor.execute(query)
-            results = cursor.fetchall()
-            return results
-        except mariadb.Error as e:
+            await self.timeout_streaks()
+            async with self.db_pool.conn_pool.acquire() as conn:
+                async with conn.cursor() as cur:
+                    query = '''SELECT user_id, streak FROM users
+                            ORDER BY streak desc'''
+                    await cur.execute(query)
+                    results = await cur.fetchall()
+                    return results
+        except Exception as e:
             logging.exception(f'Unable to get streak - {e}')
             return False
         finally:
-            cursor.close()
-            db_conn.close()
+            conn.close()
 
-    def timeout_streaks(self):
+    async def timeout_streaks(self):
         try:
-            #self.check_db_conn(self.db_pool)
-            db_conn = self.db_pool.conn_pool.get_connection()
-            cursor = db_conn.cursor()
-            query = '''UPDATE users SET streak = 0 WHERE
-                    daily_claimed < NOW() - INTERVAL %s SECOND;'''
-            cursor.execute(query, (self.timeout,))
-            db_conn.commit()
+            async with self.db_pool.conn_pool.acquire() as conn:
+                async with conn.cursor() as cur:
+                    query = '''UPDATE users SET streak = 0 WHERE
+                            daily_claimed < NOW() - INTERVAL %s SECOND;'''
+                    await cur.execute(query, (self.timeout,))
+                    return True
         except mariadb.Error as e:
             logging.exception(f'Could not timeout streaks - {e}')
-            return None
+            return False
         finally:
-            cursor.close()
-            db_conn.close()
+            conn.close()
 
     def set_streak(self, user_id):
         curr_time = datetime.now()
         try:
-            #self.check_db_conn(self.db_pool)
-            print("Before fault?")
             db_conn = self.db_pool.conn_pool.get_connection()
-            print("After fault?")
             cursor = db_conn.cursor()
             query = 'SELECT daily_claimed FROM users WHERE user_id = %s'
             cursor.execute(query, (user_id,))
@@ -193,7 +187,7 @@ class Streaks:
 
     def get_user_pb(self, user_id, year):
         try:
-            #self.check_db_conn(self.db_pool)
+
             db_conn = self.db_pool.conn_pool.get_connection()
             cursor = db_conn.cursor()
             if year == 0:
@@ -213,7 +207,7 @@ class Streaks:
 
     def get_pb_leaderboard(self, year):
         try:
-            #self.check_db_conn(self.db_pool)
+
             db_conn = self.db_pool.conn_pool.get_connection()
             cursor = db_conn.cursor()
             if year == 0:

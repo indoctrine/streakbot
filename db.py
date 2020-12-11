@@ -1,7 +1,7 @@
-import mariadb
-from mariadb import Error
 import logging
 import sys
+import aiomysql
+import asyncio
 
 class Database:
     def __init__(self, host_name, user_name, user_password, db, pool_size):
@@ -12,51 +12,21 @@ class Database:
         self.db = db
         self.pool_size = pool_size
 
+    async def create_pool(self):
         try:
-            if self.bootstrap_db(user_name, user_password, host_name, db):
-                self.conn_pool = mariadb.ConnectionPool(
-                    pool_name='streakbot_pool',
-                    pool_size=self.pool_size,
-                    pool_reset_connection=True,
-                    host=host_name,
-                    user=user_name,
-                    password=user_password,
-                    database=db)
-                logging.info('Connection to MySQL DB successful')
-            else:
-                raise Exception('Cannot bootstrap DB')
+            self.conn_pool = await aiomysql.create_pool(host=self.host_name, user=self.user_name,
+                                                    password=self.user_password, db=self.db,
+                                                    maxsize=self.pool_size)
+            logging.info('Connection to MySQL DB successful')
         except Error as e:
-            logging.exception(f'Error while connecting to MySQL using Connection pool {e}')
+            logging.exception(f'Error while creating MySQL Connection Pool {e}')
             sys.exit(1)
 
-    def refresh_db_pool(self):
+    async def bootstrap_db(self):
         try:
-            db_conn = self.conn_pool.get_connection()
-            db_conn.close()
-            return True
-        except mariadb.PoolError as e:
-            print(e)
-            print("Segfault here?")
-            for x in range(self.pool_size):
-                tempconn = mariadb.connect(
-                    user=self.user_name,
-                    password=self.user_password,
-                    host=self.host_name,
-                    database=self.db)
-                self.conn_pool.add_connection(tempconn)
-            logging.info('Connection pool refreshed')
-            return True
-        except Error as e:
-            logging.exception(f'Error while connecting to MySQL using Connection pool {e}')
-            return False
-
-    def bootstrap_db(self, user_name, user_password, host_name, db):
-        try:
-            db_conn = mariadb.connection(
-                        user=user_name,
-                        password=user_password,
-                        host=host_name)
-            cursor = db_conn.cursor()
+            db_conn = await aiomysql.connect(host=self.host_name, user=self.user_name,
+                                                  password=self.user_password)
+            cursor = await db_conn.cursor()
             create_db = 'CREATE DATABASE IF NOT EXISTS {db}'
             use_db = 'USE {db}'
             create_user_table = '''CREATE TABLE IF NOT EXISTS `users` (
@@ -86,21 +56,18 @@ class Database:
                                     )'''
 
             # Create database
-            cursor.execute(create_db.format(db=db))
-            db_conn.commit()
+            await cursor.execute(create_db.format(db=self.db))
 
             # Move cursor to database
-            cursor.execute(use_db.format(db=db))
+            await cursor.execute(use_db.format(db=self.db))
 
             # Create the tables
-            cursor.execute(create_user_table)
-            cursor.execute(create_logs_table)
-            cursor.execute(create_streak_history)
-            db_conn.commit()
+            await cursor.execute(create_user_table)
+            await cursor.execute(create_logs_table)
+            await cursor.execute(create_streak_history)
             return True
         except:
             logging.exception('Could not bootstrap database')
-            return False
+            sys.exit(1)
         finally:
-            cursor.close()
             db_conn.close()
