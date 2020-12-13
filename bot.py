@@ -12,7 +12,7 @@ from db import Database
 
 CMD_COOLDOWN = 82800 # Cooldown is 23 hours (82800)
 STREAK_TIMEOUT = 172800 # Timeout after 48 hours (172800)
-REMINDER_THRESHOLD = 3600 # Threshold for reminders
+REMINDER_THRESHOLD = 10800 # Threshold for reminders
 DB_NAME = 'streakbot' # Must be SQL friendly
 DB_HOST = 'localhost'
 DB_POOL_SIZE = 10
@@ -95,14 +95,17 @@ class Streak_Commands(commands.Cog, name='Streak Commands'):
     brief='Add to your drawing streak')
     # Will throw CommandOnCooldown error if on CD
     async def daily(self, ctx):
-        if streak.check_user_exists(ctx.message.author.id, ctx.message.author):
-            streak_success = streak.set_streak(ctx.message.author.id)
-            if streak_success is True:
-                await ctx.send(f'Daily updated for {ctx.message.author} - your current streak is {streak.get_streak(ctx.message.author.id)}')
-            elif streak_success is False:
+        user_exists = await streak.check_user_exists(ctx.message.author.id, ctx.message.author)
+        if user_exists:
+            streak_success = await streak.set_streak(ctx.message.author.id)
+            if streak_success is 'success':
+                curr_streak = await streak.get_streak(ctx.message.author.id)
+                print(curr_streak)
+                await ctx.send(f'Daily updated for {ctx.message.author} - your current streak is {curr_streak}')
+            elif streak_success is 'timeout':
                 await ctx.send(f'More than 48 hours have passed, {ctx.message.author}\'s streak has been set to 1')
-            else:
-                await ctx.send('Something went wrong setting your daily, try again later')
+            elif type(streak_success) is float:
+                raise commands.CommandOnCooldown(CMD_COOLDOWN, streak_success)
         else:
             await ctx.send(f'Could not update daily for {ctx.message.author}')
 
@@ -167,7 +170,7 @@ class Streak_Commands(commands.Cog, name='Streak Commands'):
             embed.set_footer(text=f'Set new records by drawing each day and using {bot.command_prefix}daily!')
             await ctx.send(embed=embed)
         else:
-            personal_best = streak.get_user_pb(user.id, year)
+            personal_best = await streak.get_user_pb(user.id, year)
             if personal_best is not None:
                 personal_best = personal_best[0]
                 await ctx.send(f'Personal best of {year if year > 0 else "all time"} for {user} is {personal_best}')
