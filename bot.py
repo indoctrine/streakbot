@@ -12,7 +12,7 @@ from db import Database
 
 CMD_COOLDOWN = 82800 # Cooldown is 23 hours (82800)
 STREAK_TIMEOUT = 172800 # Timeout after 48 hours (172800)
-REMINDER_THRESHOLD = 3600 # Threshold for reminders
+REMINDER_THRESHOLD = 10800 # Threshold for reminders
 DB_NAME = 'streakbot' # Must be SQL friendly
 DB_HOST = 'localhost'
 DB_POOL_SIZE = 10
@@ -39,7 +39,11 @@ except:
 intents = discord.Intents.default()
 intents.members = True # Intent allows us to get users that haven't been seen yet
 bot = commands.Bot(command_prefix='$', case_insensitive=True, intents=intents)
+
+
 db_pool = Database(DB_HOST, creds['mysql']['user'], creds['mysql']['pass'], DB_NAME, DB_POOL_SIZE)
+asyncio.get_event_loop().run_until_complete(db_pool.bootstrap_db())
+asyncio.get_event_loop().run_until_complete(db_pool.create_pool())
 
 # Load Modules #
 streak = Streaks(db_pool, CMD_COOLDOWN, STREAK_TIMEOUT)
@@ -91,14 +95,15 @@ class Streak_Commands(commands.Cog, name='Streak Commands'):
     brief='Add to your drawing streak')
     # Will throw CommandOnCooldown error if on CD
     async def daily(self, ctx):
-        if streak.check_user_exists(ctx.message.author.id, ctx.message.author):
-            streak_success = streak.set_streak(ctx.message.author.id)
-            if streak_success is True:
-                await ctx.send(f'Daily updated for {ctx.message.author} - your current streak is {streak.get_streak(ctx.message.author.id)}')
-            elif streak_success is False:
-                await ctx.send(f'More than 48 hours have passed, {ctx.message.author}\'s streak has been set to 1')
-            else:
-                await ctx.send('Something went wrong setting your daily, try again later')
+        user_exists = await streak.check_user_exists(ctx.message.author.id, ctx.message.author)
+        if user_exists:
+            streak_success = await streak.set_streak(ctx.message.author.id)
+            if streak_success['status'] is 'success':
+                await ctx.send(f"Daily updated for {ctx.message.author} - your current streak is {streak_success['streak']}")
+            elif streak_success['status'] is 'timeout':
+                await ctx.send(f"More than 48 hours have passed, {ctx.message.author}\'s streak has been set to {streak_success['streak']}")
+            elif streak_success['status'] is 'on_cooldown':
+                raise commands.CommandOnCooldown(CMD_COOLDOWN, streak_success['cooldown'])
         else:
             await ctx.send(f'Could not update daily for {ctx.message.author}')
 
@@ -109,10 +114,8 @@ class Streak_Commands(commands.Cog, name='Streak Commands'):
             hour, min = divmod(min, 60)
             user_id = ctx.message.author.id
             await ctx.send(f'Try again in {int(hour)} hours, {int(min)} minutes, and {int(sec)} seconds')
-            if error.retry_after <= 3600:
-                print("Time less than an hour")
+            if error.retry_after <= REMINDER_THRESHOLD:
                 if user_id not in reminders:
-                    print("User ID not in reminders")
                     reminders[user_id] = error.retry_after
                     await asyncio.sleep(error.retry_after)
                     await ctx.send(f"Hey <@!{user_id}>, it\'s time to claim your daily")
@@ -124,8 +127,7 @@ class Streak_Commands(commands.Cog, name='Streak Commands'):
     are timed out when this command is run to ensure all information is up to date.''',
     brief='Displays current streak leaderboard')
     async def leaderboard(self, ctx):
-        streak.timeout_streaks()
-        leaderboard = streak.get_leaderboard()
+        leaderboard = await streak.get_leaderboard()
         counter = 1
         leaderboard_text = ''
         for user, curr_streak in leaderboard:
@@ -133,8 +135,6 @@ class Streak_Commands(commands.Cog, name='Streak Commands'):
             if username is not None:
                 leaderboard_text += f'**{counter}.** {username}  -  {curr_streak}\n'
                 counter += 1
-            if counter > 10:
-                break
 
         embed = discord.Embed(color=0x00bfff)
         embed.set_thumbnail(url=ctx.guild.icon_url)
@@ -150,39 +150,42 @@ class Streak_Commands(commands.Cog, name='Streak Commands'):
     brief='Displays personal best leaderboard')
     async def pb(self, ctx, year: int = 0, user: discord.Member = None):
         if year > datetime.now().year:
-            raise commands.CommandError
+            await ctx.send(f'Year is in the future, please enter a valid year')
+            return False
         if user is None:
-            personal_best = streak.get_pb_leaderboard(year)
-            counter = 1
-            pb_leaderboard_text = ''
-            for user, pb in personal_best:
-                username = self.bot.get_user(int(user))
-                if username is not None:
-                    pb_leaderboard_text += f'**{counter}.** {username}  -  {pb}\n'
-                    counter += 1
-                if counter > 10:
-                    break
+            personal_best = await streak.get_pb_leaderboard(year)
+            if personal_best:
+                counter = 1
+                pb_leaderboard_text = ''
+                for user, pb in personal_best:
+                    username = self.bot.get_user(int(user))
+                    if username is not None:
+                        pb_leaderboard_text += f'**{counter}.** {username}  -  {pb}\n'
+                        counter += 1
 
-            embed = discord.Embed(color=0x00bfff)
-            embed.set_thumbnail(url=ctx.guild.icon_url)
-            embed.add_field(name=f'{year if year > 0 else "All Time"} Personal Best Leaderboard',
-                            value=pb_leaderboard_text, inline=True)
-            embed.set_footer(text=f'Set new records by drawing each day and using {bot.command_prefix}daily!')
-            await ctx.send(embed=embed)
+                embed = discord.Embed(color=0x00bfff)
+                embed.set_thumbnail(url=ctx.guild.icon_url)
+                embed.add_field(name=f'{year if year > 0 else "All Time"} Personal Best Leaderboard',
+                                value=pb_leaderboard_text, inline=True)
+                embed.set_footer(text=f'Set new records by drawing each day and using {bot.command_prefix}daily!')
+                await ctx.send(embed=embed)
+                return True
+            else:
+                await ctx.send(f'No valid leaderboard for {year}')
+                return False
         else:
-            personal_best = streak.get_user_pb(user.id, year)
+            personal_best = await streak.get_user_pb(user.id, year)
             if personal_best is not None:
                 personal_best = personal_best[0]
                 await ctx.send(f'Personal best of {year if year > 0 else "all time"} for {user} is {personal_best}')
+                return True
             else:
                 raise commands.BadArgument
 
     @pb.error
     async def pb_error(self, ctx, error):
         if isinstance(error, commands.BadArgument):
-            await ctx.send('Unable to look up personal best - Invalid argument(s)')
-        elif isinstance(error, commands.CommandError):
-            await ctx.send(f'Year is in the future, cannot return results')
+            await ctx.send(f'Invalid arguments \n Usage: {bot.command_prefix}pb <year> <user>')
         else:
             raise error
 
