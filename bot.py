@@ -6,22 +6,28 @@ import sys
 import atexit
 import time
 import asyncio
+import configparser
 from datetime import datetime
 from streak import Streaks
 from db import Database
 
-CMD_COOLDOWN = 82800 # Cooldown is 23 hours (82800)
-STREAK_TIMEOUT = 172800 # Timeout after 48 hours (172800)
-REMINDER_THRESHOLD = 10800 # Threshold for reminders
-DB_NAME = 'streakbot' # Must be SQL friendly
-DB_HOST = 'localhost'
-DB_POOL_SIZE = 10
-CREDS_LOCATION = 'creds.json'
-reminders = {}
-
 logging.basicConfig(format='%(asctime)s [%(levelname)s] %(message)s', stream=sys.stderr,level=logging.INFO)
 
-if not DB_NAME.isalnum():
+config = configparser.ConfigParser()
+try:
+    config.read('config.ini')
+except Exception as e:
+    logging.exception('Could not load configuration file')
+creds = config['Credentials']
+db = config['Database']
+streakcfg = config['Streaks']
+CMD_COOLDOWN = int(streakcfg['Cooldown']) # Cooldown is 23 hours (82800)
+STREAK_TIMEOUT = int(streakcfg['Timeout']) # Timeout after 48 hours (172800)
+REMINDER_THRESHOLD = int(streakcfg['Reminder']) # Threshold for reminders
+reminders = {}
+
+
+if not db['Name'].isalnum():
     logging.exception('Invalid characters in SQL database name')
     sys.exit(1)
 
@@ -29,19 +35,12 @@ if not DB_NAME.isalnum():
 def cleanup():
     logging.info('Shutting down...')
 
-try:
-    with open(CREDS_LOCATION, 'r') as file:
-        creds = json.load(file)
-except:
-    logging.exception('Could not load credentials file')
-    sys.exit(1)
-
 intents = discord.Intents.default()
 intents.members = True # Intent allows us to get users that haven't been seen yet
 bot = commands.Bot(command_prefix='$', case_insensitive=True, intents=intents)
 
 
-db_pool = Database(DB_HOST, creds['mysql']['user'], creds['mysql']['pass'], DB_NAME, DB_POOL_SIZE)
+db_pool = Database(db['Host'], creds['DatabaseUser'], creds['DatabasePass'], db['Name'], int(db['PoolSize']))
 asyncio.get_event_loop().run_until_complete(db_pool.bootstrap_db())
 asyncio.get_event_loop().run_until_complete(db_pool.create_pool())
 
@@ -201,7 +200,7 @@ bot.add_cog(Streak_Commands(bot))
 bot.add_cog(Fun_Commands(bot))
 
 try:
-    bot.run(creds['discord']['token'])
+    bot.run(creds['DiscordToken'])
 except Exception as e:
     logging.exception(f'Could not connect to Discord {e}')
     sys.exit(1)
