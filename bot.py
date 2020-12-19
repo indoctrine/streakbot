@@ -124,10 +124,16 @@ class Streak_Commands(commands.Cog, name='Streak Commands'):
             raise error
 
     @commands.command(help='''Displays the current leaderboard for daily streak. Streaks
-    are timed out when this command is run to ensure all information is up to date.''',
+    are timed out when this command is run to ensure all information is up to date. This
+    command can take the `current` argument to return only this years' leaderboard''',
     brief='Displays current streak leaderboard')
-    async def leaderboard(self, ctx):
-        leaderboard = await streak.get_leaderboard()
+    async def leaderboard(self, ctx, arg = 'overall'):
+        if arg.lower() == 'current':
+            leaderboard_type = 'Current Year Streak Leaderboard'
+            leaderboard = await streak.get_leaderboard(arg)
+        else:
+            leaderboard_type = 'Overall Streak Leaderboard'
+            leaderboard = await streak.get_leaderboard()
         counter = 1
         leaderboard_text = ''
         for user, curr_streak in leaderboard:
@@ -138,7 +144,7 @@ class Streak_Commands(commands.Cog, name='Streak Commands'):
 
         embed = discord.Embed(color=0x00bfff)
         embed.set_thumbnail(url=ctx.guild.icon_url)
-        embed.add_field(name='Streak Leaderboard', value=leaderboard_text, inline=True)
+        embed.add_field(name=leaderboard_type, value=leaderboard_text, inline=True)
         embed.set_footer(text=f'Increase your streak by drawing each day and using {bot.command_prefix}daily!')
         await ctx.send(embed=embed)
 

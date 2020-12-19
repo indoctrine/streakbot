@@ -65,13 +65,19 @@ class Streaks:
             logging.exception(f'Unable to get streak - {e}')
             return False
 
-    async def get_leaderboard(self):
+    async def get_leaderboard(self, arg = None):
         try:
             await self.timeout_streaks()
             async with self.db_pool.conn_pool.acquire() as conn:
                 async with conn.cursor() as cur:
-                    query = '''SELECT user_id, streak FROM users
-                            ORDER BY streak desc'''
+                    if arg is None:
+                        query = '''SELECT user_id, streak FROM users
+                                ORDER BY streak desc'''
+                    elif arg.lower() == 'current':
+                        query = '''SELECT user_id, current_year_streak FROM
+                                users ORDER BY streak desc'''
+                    else:
+                        return False
                     await cur.execute(query)
                     results = await cur.fetchall()
                     return results
