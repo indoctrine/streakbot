@@ -226,11 +226,12 @@ class Streaks:
                             ON DUPLICATE KEY UPDATE streak_history.past_pb =
                             users.current_year_best'''
                     await cur.execute(query)
+                    await conn.commit()
 
                     if is_new_year:
                         query = '''UPDATE users SET current_year_best = 0, current_year_streak = 0'''
                         await cur.execute(query)
-                    await conn.commit()
+                        await conn.commit()
                     return True
         except Exception as e:
             logging.exception(f'Unable to rollover streaks - {e}')
