@@ -75,7 +75,7 @@ class Streaks:
                                 ORDER BY streak desc'''
                     elif arg.lower() == 'current':
                         query = '''SELECT user_id, current_year_streak FROM
-                                users ORDER BY streak desc'''
+                                users ORDER BY current_year_streak desc'''
                     else:
                         return False
                     await cur.execute(query)
