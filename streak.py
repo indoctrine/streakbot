@@ -129,10 +129,10 @@ class Streaks:
                             streak = streak + 1, personal_best = CASE WHEN
                             streak + 1 > personal_best THEN streak
                             ELSE personal_best END,
+                            current_year_streak = current_year_streak + 1,
                             current_year_best = CASE WHEN
                             current_year_streak + 1 > current_year_best THEN current_year_streak
-                            ELSE current_year_best END,
-                            current_year_streak = current_year_streak + 1
+                            ELSE current_year_best END
                             WHERE user_id = %s'''
 
                     # Check for new year and rollover
