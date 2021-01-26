@@ -1,6 +1,5 @@
 from datetime import datetime
 import logging
-import mariadb
 import aiomysql
 import asyncio
 import sys

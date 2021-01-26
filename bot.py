@@ -7,8 +7,10 @@ import atexit
 import time
 import asyncio
 import configparser
+import re
 from datetime import datetime
 from streak import Streaks
+from log import Log
 from db import Database
 
 logging.basicConfig(format='%(asctime)s [%(levelname)s] %(message)s', stream=sys.stderr,level=logging.INFO)
@@ -17,7 +19,7 @@ config = configparser.ConfigParser()
 try:
     config.read('config.ini')
 except Exception as e:
-    logging.exception('Could not load configuration file')
+    sys.exit(f'Could not load configuration file {e}')
 creds = config['Credentials']
 db = config['Database']
 streakcfg = config['Streaks']
@@ -46,6 +48,7 @@ asyncio.get_event_loop().run_until_complete(db_pool.create_pool())
 
 # Load Modules #
 streak = Streaks(db_pool, CMD_COOLDOWN, STREAK_TIMEOUT)
+log = Log(db_pool)
 
 @bot.event
 async def on_ready():
@@ -83,6 +86,33 @@ class Fun_Commands(commands.Cog, name='Fun Commands'):
             await ctx.send("I don't know who that is.")
         else:
             raise error
+
+class Log_Commands(commands.Cog, name='Log Commands'):
+    def __init__(self, bot):
+        self.bot = bot
+    @commands.command(help='''This command will allow you to log time or pages
+    drawn.''', brief='Log time or pages for this month')
+    async def log(self, ctx, log_type, amount: int = 0):
+        log_type = log_type.lower()
+        log_types = ['pages', 'page', 'time']
+        if log_type in log_types:
+            user_exists = await streak.check_user_exists(ctx.message.author.id, ctx.message.author)
+        else:
+            raise commands.errors.BadArgument(amount)
+        if user_exists:
+            if amount == 0:
+                raise commands.errors.BadArgument()
+            if re.findall('pages?', log_type):
+                await log.log_pages()
+            else:
+                print('To be filled with time logging')
+
+    @log.error
+    async def log_error(self, ctx, error):
+        if isinstance(error, commands.errors.MissingRequiredArgument):
+            await ctx.send('Log type is a required argument - valid logging types are `page(s)` or `time`')
+        elif isinstance(error, commands.errors.BadArgument):
+            await ctx.send('Invalid argument(s), command format is `log {type} {amount}`')
 
 class Streak_Commands(commands.Cog, name='Streak Commands'):
     def __init__(self, bot):
@@ -197,6 +227,7 @@ class Streak_Commands(commands.Cog, name='Streak Commands'):
 
 bot.add_cog(Utility_Commands(bot))
 bot.add_cog(Streak_Commands(bot))
+bot.add_cog(Log_Commands(bot))
 bot.add_cog(Fun_Commands(bot))
 
 try:
