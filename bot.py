@@ -98,12 +98,13 @@ class Log_Commands(commands.Cog, name='Log Commands'):
         if log_type in log_types:
             user_exists = await streak.check_user_exists(ctx.message.author.id, ctx.message.author)
         else:
-            raise commands.errors.BadArgument(amount)
+            raise commands.errors.BadArgument()
         if user_exists:
             if amount == 0:
                 raise commands.errors.BadArgument()
             if re.findall('pages?', log_type):
-                await log.log_pages()
+                page_results = await log.log_pages(ctx.message.author.id, amount)
+                await ctx.send(f'Updated pages for {ctx.message.author} - current month = {page_results}')
             else:
                 print('To be filled with time logging')
 
@@ -184,7 +185,8 @@ class Streak_Commands(commands.Cog, name='Streak Commands'):
     You can check the personal best of an individual user using {bot.command_prefix}pb <year> <user>''',
     brief='Displays personal best leaderboard')
     async def pb(self, ctx, year: int = 0, user: discord.Member = None):
-        if year > datetime.now().year:
+        current_year = datetime.now().year
+        if year > current_year:
             await ctx.send(f'Year is in the future, please enter a valid year')
             return False
         if user is None:
@@ -212,7 +214,7 @@ class Streak_Commands(commands.Cog, name='Streak Commands'):
             personal_best = await streak.get_user_pb(user.id, year)
             if personal_best is not None:
                 personal_best = personal_best[0]
-                await ctx.send(f'Personal best of {year if year > 0 else "all time"} for {user} is {personal_best}')
+                await ctx.send(f'Personal best of {year if year > 0 else "all time"} for {user} {"was" if year < current_year else "is"} {personal_best}')
                 return True
             else:
                 raise commands.BadArgument
@@ -220,7 +222,7 @@ class Streak_Commands(commands.Cog, name='Streak Commands'):
     @pb.error
     async def pb_error(self, ctx, error):
         if isinstance(error, commands.BadArgument):
-            await ctx.send(f'Invalid arguments \n Usage: {bot.command_prefix}pb <year> <user>')
+            await ctx.send(f'Invalid arguments \n Usage: `{bot.command_prefix}pb <year> <user>`')
         else:
             raise error
 

@@ -42,10 +42,10 @@ class Database:
                             );'''
             create_logs_table = '''CREATE TABLE IF NOT EXISTS `logs` (
                               `user_id` varchar(50) NOT NULL,
-                              `month` date NOT NULL,
-                              `time` int(11) DEFAULT NULL,
-                              `pages` int(11) DEFAULT NULL,
-                              PRIMARY KEY (`user_id`)
+                              `month` varchar(8) NOT NULL,
+                              `time` int(11) DEFAULT 0,
+                              `pages` int(11) DEFAULT 0,
+                              CONSTRAINT id PRIMARY KEY (user_id,year)
                             );'''
             create_streak_history = '''CREATE TABLE IF NOT EXISTS `streak_history`
                                     (
