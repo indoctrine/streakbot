@@ -45,14 +45,14 @@ class Database:
                               `month` varchar(8) NOT NULL,
                               `time` int(11) DEFAULT 0,
                               `pages` int(11) DEFAULT 0,
-                              CONSTRAINT id PRIMARY KEY (user_id,year)
+                              CONSTRAINT PRIMARY KEY (user_id,month)
                             );'''
             create_streak_history = '''CREATE TABLE IF NOT EXISTS `streak_history`
                                     (
                                     `user_id` VARCHAR(50) NOT NULL,
                                     `year` YEAR NOT NULL,
                                     `past_pb` INT NOT NULL,
-                                    CONSTRAINT id PRIMARY KEY (user_id,year)
+                                    CONSTRAINT PRIMARY KEY (user_id,year)
                                     )'''
 
             # Create database

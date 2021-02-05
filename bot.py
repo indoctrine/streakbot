@@ -61,6 +61,20 @@ async def on_message(message):
     await bot.process_commands(message)
     # To implement message sending command when DM'd
 
+async def generate_leaderboard(title, stats, colour, thumbnail, footer):
+    counter = 1
+    leaderboard_text = ''
+    for user, stat in stats:
+        username = bot.get_user(int(user))
+        if username is not None:
+            leaderboard_text += f'**{counter}.** {username}  -  {stat}\n'
+            counter += 1
+    embed = discord.Embed(color=colour)
+    embed.set_thumbnail(url=thumbnail)
+    embed.add_field(name=title, value=leaderboard_text, inline=True)
+    embed.set_footer(text=footer)
+    return embed
+
 class Utility_Commands(commands.Cog, name='Utility Commands'):
     def __init__(self, bot):
         self.bot = bot
@@ -104,7 +118,7 @@ class Log_Commands(commands.Cog, name='Log Commands'):
                 raise commands.errors.BadArgument()
             if re.findall('pages?', log_type):
                 page_results = await log.log_pages(ctx.message.author.id, amount)
-                await ctx.send(f'Updated pages for {ctx.message.author} - current month = {page_results}')
+                await ctx.send(f'Added {amount} pages for {ctx.message.author}. Current month total is {page_results}.')
             else:
                 print('To be filled with time logging')
 
@@ -158,26 +172,20 @@ class Streak_Commands(commands.Cog, name='Streak Commands'):
     command can take the `current` argument to return only this years' leaderboard''',
     brief='Displays current streak leaderboard')
     async def leaderboard(self, ctx, arg = 'overall'):
-        if arg.lower() == 'current':
-            leaderboard_type = 'Current Year Streak Leaderboard'
-            leaderboard = await streak.get_leaderboard(arg)
+        if arg.lower() in ['current', 'overall']:
+            stats = await streak.get_leaderboard(arg)
         else:
-            leaderboard_type = 'Overall Streak Leaderboard'
-            leaderboard = await streak.get_leaderboard()
-        counter = 1
-        leaderboard_text = ''
-        for user, curr_streak in leaderboard:
-            username = self.bot.get_user(int(user))
-            if username is not None:
-                leaderboard_text += f'**{counter}.** {username}  -  {curr_streak}\n'
-                counter += 1
+            raise commands.errors.BadArgument()
 
-        embed = discord.Embed(color=0x00bfff)
-        embed.set_thumbnail(url=ctx.guild.icon_url)
-        embed.add_field(name=leaderboard_type, value=leaderboard_text, inline=True)
-        embed.set_footer(text=f'Increase your streak by drawing each day and using {bot.command_prefix}daily!')
-        await ctx.send(embed=embed)
+        leaderboard = await generate_leaderboard(f'{arg.capitalize()} Streak Leaderboard', stats, 0x00bfff, ctx.guild.icon_url, f'Increase your streak by drawing each day and using {bot.command_prefix}daily!')
+        await ctx.send(embed=leaderboard)
 
+    @leaderboard.error
+    async def leaderboard_error(self, ctx, error):
+        if isinstance(error, commands.errors.BadArgument):
+            await ctx.send(f'Invalid argument for {bot.command_prefix}leaderboard command.')
+        else:
+            raise error
 
     @commands.command(help=f'''Displays the personal best leaderboard for daily streak.
     This leaderboard shows the best unbroken streaks of all time when run with {bot.command_prefix}pb.
@@ -192,20 +200,8 @@ class Streak_Commands(commands.Cog, name='Streak Commands'):
         if user is None:
             personal_best = await streak.get_pb_leaderboard(year)
             if personal_best:
-                counter = 1
-                pb_leaderboard_text = ''
-                for user, pb in personal_best:
-                    username = self.bot.get_user(int(user))
-                    if username is not None:
-                        pb_leaderboard_text += f'**{counter}.** {username}  -  {pb}\n'
-                        counter += 1
-
-                embed = discord.Embed(color=0x00bfff)
-                embed.set_thumbnail(url=ctx.guild.icon_url)
-                embed.add_field(name=f'{year if year > 0 else "All Time"} Personal Best Leaderboard',
-                                value=pb_leaderboard_text, inline=True)
-                embed.set_footer(text=f'Set new records by drawing each day and using {bot.command_prefix}daily!')
-                await ctx.send(embed=embed)
+                pb_leaderboard = await generate_leaderboard(f'{year if year > 0 else "All Time"} Personal Best Leaderboard', personal_best, 0x00bfff, ctx.guild.icon_url, f'Set new records by drawing each day and using {bot.command_prefix}daily!')
+                await ctx.send(embed=pb_leaderboard)
                 return True
             else:
                 await ctx.send(f'No valid leaderboard for {year}')
