@@ -18,6 +18,7 @@ class Database:
                                                     password=self.user_password, db=self.db,
                                                     maxsize=self.pool_size)
             logging.info('Connection to MySQL DB successful')
+            return self.conn_pool
         except Error as e:
             logging.exception(f'Error while creating MySQL Connection Pool {e}')
             sys.exit(1)
