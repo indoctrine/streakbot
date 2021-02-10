@@ -25,6 +25,7 @@ class Streak_Commands(commands.Cog, name='Streak Commands'):
     brief='Add to your drawing streak')
     # Will throw CommandOnCooldown error if on CD
     async def daily(self, ctx):
+        print(ctx.bot.command_prefix)
         user_exists = await self.check_user_exists(ctx.message.author.id, ctx.message.author)
         if user_exists:
             streak_success = await self.set_streak(ctx.message.author.id)
@@ -63,7 +64,7 @@ class Streak_Commands(commands.Cog, name='Streak Commands'):
         else:
             raise commands.errors.BadArgument()
 
-        leaderboard = await self.generate_leaderboard(f'{arg.capitalize()} Streak Leaderboard', stats, 0x00bfff, ctx.guild.icon_url, f'Increase your streak by drawing each day and using {ctx.bot.command_prefix}daily!')
+        leaderboard = await ctx.bot.generate_leaderboard(f'{arg.capitalize()} Streak Leaderboard', stats, 0x00bfff, ctx.guild.icon_url, f'Increase your streak by drawing each day and using {ctx.bot.command_prefix}daily!')
         await ctx.send(embed=leaderboard)
 
     @leaderboard.error
@@ -86,7 +87,7 @@ class Streak_Commands(commands.Cog, name='Streak Commands'):
         if user is None:
             personal_best = await self.get_pb_leaderboard(year)
             if personal_best:
-                pb_leaderboard = await self.generate_leaderboard(f'{year if year > 0 else "All Time"} Personal Best Leaderboard', personal_best, 0x00bfff, ctx.guild.icon_url, f'Set new records by drawing each day and using {ctx.bot.command_prefix}daily!')
+                pb_leaderboard = await ctx.bot.generate_leaderboard(f'{year if year > 0 else "All Time"} Personal Best Leaderboard', personal_best, 0x00bfff, ctx.guild.icon_url, f'Set new records by drawing each day and using {ctx.bot.command_prefix}daily!')
                 await ctx.send(embed=pb_leaderboard)
                 return True
             else:
@@ -349,22 +350,6 @@ class Streak_Commands(commands.Cog, name='Streak Commands'):
         except Exception as e:
             logging.exception(f'Unable to get streak - {e}')
             return False
-
-    async def generate_leaderboard(self, title, stats, colour, thumbnail, footer):
-        '''Helper function to generate embeds for leaderboards - gracefully handles
-        users no longer being on the server.'''
-        counter = 1
-        leaderboard_text = ''
-        for user, stat in stats:
-            username = self.bot.get_user(int(user))
-            if username is not None:
-                leaderboard_text += f'**{counter}.** {username}  -  {stat}\n'
-                counter += 1
-        embed = discord.Embed(color=colour)
-        embed.set_thumbnail(url=thumbnail)
-        embed.add_field(name=title, value=leaderboard_text, inline=True)
-        embed.set_footer(text=footer)
-        return embed
 
 def setup(bot):
     bot.add_cog(Streak_Commands(bot))

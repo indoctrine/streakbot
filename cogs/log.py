@@ -16,11 +16,9 @@ class Log_Commands(commands.Cog, name='Log Commands'):
     async def log(self, ctx, log_type, amount: int = 0):
         log_type = log_type.lower()
         log_types = ['pages', 'page', 'time']
-        if log_type in log_types:
-            user_exists = await self.check_user_exists(ctx.message.author.id, ctx.message.author)
-        else:
+        if log_type not in log_types:
             raise commands.errors.BadArgument()
-        if user_exists:
+        else:
             if amount == 0:
                 raise commands.errors.BadArgument()
             if re.findall('pages?', log_type):
@@ -65,48 +63,6 @@ class Log_Commands(commands.Cog, name='Log Commands'):
                     return results
         except Exception as e:
             logging.exception(f'Could not get page logs for user {user_id} - {e}')
-
-    async def check_user_exists(self, user_id, fulluser):
-        '''Checks if user exists within the database and calls to create_user()
-        if user does not'''
-        try:
-            async with self.bot.db_pool.acquire() as conn:
-                async with conn.cursor() as cur:
-                    query = 'SELECT * FROM users WHERE user_id = %s'
-                    await cur.execute(query, (user_id,))
-                    results = await cur.fetchall()
-                    if len(results) == 0:
-                        user_created = await self.create_user(user_id, fulluser)
-                        if user_created:
-                            return True
-                        else:
-                            return False
-                    else:
-                        return True
-        except Exception as e:
-            logging.exception(f'Could not check users table - {e}')
-
-    async def create_user(self, user_id, fulluser):
-        '''Creates user the first time they try to run the daily command'''
-        try:
-            fulluser = str(fulluser)
-            username = fulluser.split('#')[0]
-            discriminator = fulluser.split('#')[1]
-
-            async with self.bot.db_pool.acquire() as conn:
-                async with conn.cursor() as cur:
-                    query = '''INSERT INTO users (user_id, username, discriminator,
-                            streak, personal_best) VALUES (%s, %s, %s, %s, %s)'''
-                    await cur.execute(query, (user_id, username, discriminator, 0, 0,))
-                    if cur.rowcount > 0:
-                        await conn.commit()
-                        logging.info(f'User {fulluser} created')
-                        return True
-                    else:
-                        raise Exception('No rows to be written')
-        except Exception as e:
-            logging.exception(f'Could not create user - {e}')
-            return False
 
 def setup(bot):
     bot.add_cog(Log_Commands(bot))

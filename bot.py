@@ -24,8 +24,28 @@ streakcfg = config['Streaks']
 
 intents = discord.Intents.default()
 intents.members = True # Intent allows us to get users that haven't been seen yet
-bot = commands.Bot(command_prefix='$', case_insensitive=True, intents=intents)
 
+class Streakbot(commands.Bot):
+    def __init__(self, **kwargs):
+        super(Streakbot, self).__init__(**kwargs)
+
+    async def generate_leaderboard(self, title, stats, colour, thumbnail, footer):
+        '''Helper function to generate embeds for leaderboards - gracefully handles
+        users no longer being on the server.'''
+        counter = 1
+        leaderboard_text = ''
+        for user, stat in stats:
+            username = self.get_user(int(user))
+            if username is not None:
+                leaderboard_text += f'**{counter}.** {username}  -  {stat}\n'
+                counter += 1
+        embed = discord.Embed(color=colour)
+        embed.set_thumbnail(url=thumbnail)
+        embed.add_field(name=title, value=leaderboard_text, inline=True)
+        embed.set_footer(text=footer)
+        return embed
+
+bot = Streakbot(command_prefix='$', case_insensitive=True, intents=intents)
 bot.CMD_COOLDOWN = int(streakcfg['Cooldown']) # Cooldown is 23 hours (82800)
 bot.STREAK_TIMEOUT = int(streakcfg['Timeout']) # Timeout after 48 hours (172800)
 bot.REMINDER_THRESHOLD = int(streakcfg['Reminder']) # Threshold for reminders
@@ -56,7 +76,6 @@ async def on_ready():
 
 @bot.event
 async def on_message(message):
-    channel = message.channel.id
     await bot.process_commands(message)
     # To implement message sending command when DM'd
 
