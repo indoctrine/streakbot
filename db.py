@@ -18,6 +18,7 @@ class Database:
                                                     password=self.user_password, db=self.db,
                                                     maxsize=self.pool_size)
             logging.info('Connection to MySQL DB successful')
+            return self.conn_pool
         except Error as e:
             logging.exception(f'Error while creating MySQL Connection Pool {e}')
             sys.exit(1)
@@ -42,17 +43,17 @@ class Database:
                             );'''
             create_logs_table = '''CREATE TABLE IF NOT EXISTS `logs` (
                               `user_id` varchar(50) NOT NULL,
-                              `month` date NOT NULL,
-                              `time` int(11) DEFAULT NULL,
-                              `pages` int(11) DEFAULT NULL,
-                              PRIMARY KEY (`user_id`)
+                              `month` varchar(8) NOT NULL,
+                              `time` int(11) DEFAULT 0,
+                              `pages` int(11) DEFAULT 0,
+                              CONSTRAINT PRIMARY KEY (user_id,month)
                             );'''
             create_streak_history = '''CREATE TABLE IF NOT EXISTS `streak_history`
                                     (
                                     `user_id` VARCHAR(50) NOT NULL,
                                     `year` YEAR NOT NULL,
                                     `past_pb` INT NOT NULL,
-                                    CONSTRAINT id PRIMARY KEY (user_id,year)
+                                    CONSTRAINT PRIMARY KEY (user_id,year)
                                     )'''
 
             # Create database
