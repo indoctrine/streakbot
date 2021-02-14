@@ -66,7 +66,7 @@ class Log_Commands(commands.Cog, name='Log Commands'):
     @logboard.error
     async def logboard_error(self, ctx, error):
         if isinstance(error, commands.errors.MissingRequiredArgument):
-            await ctx.send('Log type and amount are required arguments.')
+            await ctx.send('Log type is a required arguments.')
         elif isinstance(error, commands.errors.BadArgument):
             if str(error) == 'log':
                 await ctx.send(f'Invalid log type, valid log types are `pages` and `time`. See `{ctx.bot.command_prefix}help logboard` for more info.')
@@ -104,7 +104,7 @@ class Log_Commands(commands.Cog, name='Log Commands'):
     @logbook.error
     async def logbook_error(self, ctx, error):
         if isinstance(error, commands.errors.MissingRequiredArgument):
-            await ctx.send('Log type and amount are required arguments.')
+            await ctx.send('Log type and user are required arguments.')
         elif isinstance(error, commands.errors.BadArgument):
             if str(error) == 'log':
                 await ctx.send(f'Invalid log type, valid log types are `pages` and `time`. See `{ctx.bot.command_prefix}help logbook` for more info.')
