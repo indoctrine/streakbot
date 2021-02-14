@@ -28,6 +28,9 @@ intents.members = True # Intent allows us to get users that haven't been seen ye
 class Streakbot(commands.Bot):
     def __init__(self, **kwargs):
         super(Streakbot, self).__init__(**kwargs)
+        self.database = Database(db['Host'], creds['DatabaseUser'], creds['DatabasePass'], db['Name'], int(db['PoolSize']))
+        asyncio.get_event_loop().run_until_complete(self.database.bootstrap_db())
+        self.db_pool = asyncio.get_event_loop().run_until_complete(self.database.create_pool())
 
     async def generate_leaderboard(self, title, stats, colour, thumbnail, footer):
         '''Helper function to generate embeds for leaderboards - gracefully handles
@@ -53,10 +56,6 @@ bot.REMINDER_THRESHOLD = int(streakcfg['Reminder']) # Threshold for reminders
 if not db['Name'].isalnum():
     logging.exception('Invalid characters in SQL database name')
     sys.exit(1)
-else:
-    database = Database(db['Host'], creds['DatabaseUser'], creds['DatabasePass'], db['Name'], int(db['PoolSize']))
-    asyncio.get_event_loop().run_until_complete(database.bootstrap_db())
-    bot.db_pool = asyncio.get_event_loop().run_until_complete(database.create_pool())
 
 @atexit.register
 def cleanup():
