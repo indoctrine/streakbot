@@ -29,11 +29,11 @@ class Streak_Commands(commands.Cog, name='Streak Commands'):
         user_exists = await self.check_user_exists(ctx.message.author.id, ctx.message.author)
         if user_exists:
             streak_success = await self.set_streak(ctx.message.author.id)
-            if streak_success['status'] is 'success':
+            if streak_success['status'] == 'success':
                 await ctx.send(f"Daily updated for {ctx.message.author} - your current streak is {streak_success['streak']}")
-            elif streak_success['status'] is 'timeout':
+            elif streak_success['status'] == 'timeout':
                 await ctx.send(f"More than 48 hours have passed, {ctx.message.author}\'s streak has been set to {streak_success['streak']}")
-            elif streak_success['status'] is 'on_cooldown':
+            elif streak_success['status'] == 'on_cooldown':
                 raise commands.CommandOnCooldown(ctx.bot.CMD_COOLDOWN, streak_success['cooldown'])
         else:
             await ctx.send(f'Could not update daily for {ctx.message.author}')
@@ -351,5 +351,5 @@ class Streak_Commands(commands.Cog, name='Streak Commands'):
             logging.exception(f'Unable to get streak - {e}')
             return False
 
-def setup(bot):
-    bot.add_cog(Streak_Commands(bot))
+async def setup(bot):
+    await bot.add_cog(Streak_Commands(bot))

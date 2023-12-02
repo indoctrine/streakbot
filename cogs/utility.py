@@ -15,5 +15,5 @@ class Utility_Commands(commands.Cog, name='Utility Commands'):
         time_delta = round((t_2-t_1)*1000)  # calculate the time needed to trigger typing
         await ctx.send(f"Pong! Latency is {time_delta}ms")
 
-def setup(bot):
-    bot.add_cog(Utility_Commands(bot))
+async def setup(bot):
+    await bot.add_cog(Utility_Commands(bot))

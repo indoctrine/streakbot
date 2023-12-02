@@ -19,5 +19,5 @@ class Fun_Commands(commands.Cog, name='Fun Commands'):
         else:
             raise error
 
-def setup(bot):
-    bot.add_cog(Fun_Commands(bot))
+async def setup(bot):
+    await bot.add_cog(Fun_Commands(bot))

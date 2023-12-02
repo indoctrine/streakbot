@@ -23,6 +23,7 @@ db = config['Database']
 streakcfg = config['Streaks']
 
 intents = discord.Intents.default()
+intents.message_content = True
 intents.members = True # Intent allows us to get users that haven't been seen yet
 
 class Streakbot(commands.Bot):
@@ -61,15 +62,12 @@ if not db['Name'].isalnum():
 def cleanup():
     logging.info('Shutting down...')
 
-# Load Modules #
-extensions = ['cogs.streak', 'cogs.log', 'cogs.fun', 'cogs.utility']
-
-if __name__ == '__main__':
-    for extension in extensions:
-        bot.load_extension(extension)
-
 @bot.event
 async def on_ready():
+    # Load Modules #
+    extensions = ['cogs.streak', 'cogs.log', 'cogs.fun', 'cogs.utility']
+    for extension in extensions:
+        await bot.load_extension(extension)
     logging.info(f'Logged on as {bot.user}!')
 
 

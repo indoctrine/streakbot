@@ -179,5 +179,5 @@ class Log_Commands(commands.Cog, name='Log Commands'):
         except Exception as e:
             logging.exception(f'Could not get page logs for user {user_id} - {e}')
 
-def setup(bot):
-    bot.add_cog(Log_Commands(bot))
+async def setup(bot):
+    await bot.add_cog(Log_Commands(bot))
